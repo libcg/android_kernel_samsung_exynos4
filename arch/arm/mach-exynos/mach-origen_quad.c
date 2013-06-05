@@ -33,6 +33,7 @@
 #include <plat/fimg2d.h>
 #include <plat/gpio-cfg.h>
 #include <plat/iic.h>
+#include <plat/keypad.h>
 #include <plat/mfc.h>
 #include <plat/pm.h>
 #include <plat/regs-fb-v4.h>
@@ -229,6 +230,61 @@ static struct s5m_platform_data origen_s5m8767_pdata = {
 	.buck4_ramp_enable	= true,
 };
 
+static struct gpio_event_direct_entry origen_keypad_keymap[] = {
+	{
+		.gpio	= EXYNOS4_GPX2(7),
+		.code	= KEY_POWER,
+	}
+};
+
+static struct gpio_event_input_info origen_keypad_input_info = {
+	.info.func		= gpio_event_input_func,
+	.info.no_suspend	= true,
+	.debounce_time.tv64	= 20 * NSEC_PER_MSEC,
+	.type			= EV_KEY,
+	.keymap			= origen_keypad_keymap,
+	.keymap_size		= ARRAY_SIZE(origen_keypad_keymap)
+};
+
+static struct gpio_event_info *origen_keypad_info[] = {
+	&origen_keypad_input_info.info,
+};
+
+static struct gpio_event_platform_data origen_keypad_pdata = {
+	.names	= {
+		"origen-keypad",
+		NULL,
+	},
+	.info		= origen_keypad_info,
+	.info_count	= ARRAY_SIZE(origen_keypad_info),
+};
+
+static struct platform_device origen_device_keypad = {
+	.name	= GPIO_EVENT_DEV_NAME,
+	.id	= 0,
+	.dev	= {
+		.platform_data = &origen_keypad_pdata,
+	},
+};
+
+static uint32_t origen_keymap[] __initdata = {
+	/* KEY(row, col, keycode) */
+	KEY(0, 0, KEY_HOME), KEY(0, 1, KEY_DOWN),
+	KEY(1, 0, KEY_UP),   KEY(1, 1, KEY_MENU),
+	KEY(2, 0, KEY_BACK), KEY(2, 1, KEY_SEARCH)
+};
+
+static struct matrix_keymap_data origen_keymap_data __initdata = {
+	.keymap	 = origen_keymap,
+	.keymap_size	= ARRAY_SIZE(origen_keymap),
+};
+
+static struct samsung_keypad_platdata origen_keypad_data __initdata = {
+	.keymap_data	= &origen_keymap_data,
+	.rows		= 3,
+	.cols		= 2,
+};
+
 static struct i2c_board_info origen_i2c_devs0[] __initdata = {
 	{
 		I2C_BOARD_INFO("s5m87xx", 0xCC >> 1),
@@ -356,11 +412,13 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
 	&samsung_device_battery,
+	&samsung_device_keypad,
 	&exynos_busfreq,
 	&exynos_device_dwmci,
 	&exynos_device_ion,
 	&exynos4412_busfreq,
 	&mali_gpu_device,
+	&origen_device_keypad,
 };
 
 static int __init exynos4_setup_clock(struct device *dev,
@@ -453,6 +511,20 @@ static void origen_rtc_wake_init(void)
 #endif
 }
 
+static void __init origen_powerkey_init(void)
+{
+	int err = 0;
+
+	err = gpio_request_one(EXYNOS4_GPX2(7), 0, "GPX2");
+	if (err) {
+		printk(KERN_ERR "failed to request GPX2 for "
+				"suspend/resume control\n");
+		return;
+	}
+	s3c_gpio_setpull(EXYNOS4_GPX2(7), S3C_GPIO_PULL_NONE);
+	gpio_free(EXYNOS4_GPX2(7));
+}
+
 static void __init origen_machine_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
@@ -477,6 +549,9 @@ static void __init origen_machine_init(void)
 
 	origen_rtc_wake_init();
 	origen_pmu_wdt_init();
+
+	origen_powerkey_init();
+	samsung_keypad_set_platdata(&origen_keypad_data);
 
 	exynos_dwmci_set_platdata(&origen_dwmci_pdata);
 	s3c_sdhci2_set_platdata(&origen_hsmmc2_pdata);
