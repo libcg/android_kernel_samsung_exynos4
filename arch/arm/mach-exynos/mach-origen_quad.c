@@ -11,6 +11,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/fb.h>
 #include <linux/gpio.h>
 #include <linux/gpio_event.h>
 #include <linux/i2c.h>
@@ -24,6 +25,8 @@
 #include <linux/regulator/machine.h>
 #include <linux/serial_core.h>
 
+#include <video/platform_lcd.h>
+
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -32,6 +35,7 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
+#include <plat/fb.h>
 #include <plat/fimg2d.h>
 #include <plat/gpio-cfg.h>
 #include <plat/iic.h>
@@ -320,6 +324,112 @@ static struct platform_pwm_backlight_data origen_bl_data = {
 	.pwm_period_ns	= 1000,
 };
 
+static struct s3c_fb_pd_win origen_fb_win0 = {
+	.xres			= 1024,
+	.yres			= 600,
+        .virtual_x              = 1024,
+        .virtual_y              = 600 * CONFIG_FB_S3C_NR_BUFFERS,
+        .max_bpp                = 32,
+        .default_bpp            = 24,
+	.width			= 154,
+	.height 		= 90,
+};
+
+static struct s3c_fb_pd_win origen_fb_win1 = {
+	.xres			= 1024,
+	.yres			= 600,
+        .virtual_x              = 1024,
+        .virtual_y              = 600 * CONFIG_FB_S3C_NR_BUFFERS,
+        .max_bpp                = 32,
+        .default_bpp            = 24,
+	.width			= 154,
+	.height 		= 90,
+};
+
+static struct s3c_fb_pd_win origen_fb_win2 = {
+	.xres			= 1024,
+	.yres			= 600,
+        .virtual_x              = 1024,
+        .virtual_y              = 600 * CONFIG_FB_S3C_NR_BUFFERS,
+        .max_bpp                = 32,
+        .default_bpp            = 24,
+	.width			= 154,
+	.height 		= 90,
+};
+
+static struct s3c_fb_pd_win origen_fb_win3 = {
+	.xres			= 1024,
+	.yres			= 600,
+        .virtual_x              = 1024,
+        .virtual_y              = 600 * CONFIG_FB_S3C_NR_BUFFERS,
+        .max_bpp                = 32,
+        .default_bpp            = 24,
+	.width			= 154,
+	.height 		= 90,
+};
+
+static struct s3c_fb_pd_win origen_fb_win4 = {
+	.xres			= 1024,
+	.yres			= 600,
+        .virtual_x              = 1024,
+        .virtual_y              = 600 * CONFIG_FB_S3C_NR_BUFFERS,
+        .max_bpp                = 32,
+        .default_bpp            = 24,
+	.width			= 154,
+	.height 		= 90,
+};
+
+static struct fb_videomode origen_lcd_timing = {
+	.left_margin	= 213,
+	.right_margin	= 105,
+	.upper_margin	= 23,
+	.lower_margin	= 10,
+	.hsync_len	= 2,
+	.vsync_len	= 2,
+	.xres		= 1024,
+	.yres		= 600,
+};
+
+static struct s3c_fb_platdata origen_lcd0_pdata __initdata = {
+	.win[0]         = &origen_fb_win0,
+	.win[1]         = &origen_fb_win1,
+	.win[2]         = &origen_fb_win2,
+	.win[3]         = &origen_fb_win3,
+	.win[4]         = &origen_fb_win4,
+	.vtiming        = &origen_lcd_timing,
+	.vidcon1        = VIDCON1_INV_VCLK | VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	.setup_gpio     = exynos4_fimd0_gpio_setup_24bpp,
+};
+
+static void origen_lcd_set_power(struct plat_lcd_data *pd, unsigned int power)
+{
+	int ret;
+
+	if (power)
+		ret = gpio_request_one(EXYNOS4X12_GPM3(4),
+					GPIOF_OUT_INIT_HIGH, "GPM3_4");
+	else
+		ret = gpio_request_one(EXYNOS4X12_GPM3(4),
+					GPIOF_OUT_INIT_LOW, "GPM3_4");
+
+	gpio_free(EXYNOS4X12_GPM3(4));
+
+	if (ret)
+		pr_err("failed to request gpio for LCD power: %d\n", ret);
+}
+
+static struct plat_lcd_data origen_lcd_data = {
+	.set_power = origen_lcd_set_power,
+};
+
+static struct platform_device origen_device_lcd = {
+        .name   = "platform-lcd",
+        .dev    = {
+                .parent         = &s5p_device_fimd0.dev,
+                .platform_data  = &origen_lcd_data,
+        },
+};
+
 static struct i2c_board_info origen_i2c_devs0[] __initdata = {
 	{
 		I2C_BOARD_INFO("s5m87xx", 0xCC >> 1),
@@ -454,6 +564,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&exynos4412_busfreq,
 	&mali_gpu_device,
 	&origen_device_keypad,
+	&origen_device_lcd,
 };
 
 static int __init exynos4_setup_clock(struct device *dev,
@@ -595,6 +706,7 @@ static void __init origen_machine_init(void)
 
 	s5p_fimg2d_set_platdata(&fimg2d_data);
 
+	s5p_fimd0_set_platdata(&origen_lcd0_pdata);
 	samsung_bl_set(&origen_bl_gpio_info, &origen_bl_data);
 
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
