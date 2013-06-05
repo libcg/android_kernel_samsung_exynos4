@@ -69,18 +69,13 @@ static const struct s5m_voltage_desc buck_voltage_val3 = {
 };
 
 static const struct s5m_voltage_desc ldo_voltage_val1 = {
-	.max = 1800000,
-	.min = 1800000,
+	.max = 3950000,
+	.min =  800000,
 	.step =  50000,
 };
 
-static const struct s5m_voltage_desc ldo_voltage_val4 = {
-	.max = 3300000,
-	.min = 3000000,
-	.step =  25000,
-};
 static const struct s5m_voltage_desc ldo_voltage_val2 = {
-	.max = 1000000,
+	.max = 2375000,
 	.min =  800000,
 	.step =  25000,
 };
@@ -97,7 +92,7 @@ static const struct s5m_voltage_desc *reg_voltage_map[] = {
 	[S5M8767_LDO9] = &ldo_voltage_val1,
 	[S5M8767_LDO10] = &ldo_voltage_val1,
 	[S5M8767_LDO11] = &ldo_voltage_val1,
-	[S5M8767_LDO12] = &ldo_voltage_val4,
+	[S5M8767_LDO12] = &ldo_voltage_val1,
 	[S5M8767_LDO13] = &ldo_voltage_val1,
 	[S5M8767_LDO14] = &ldo_voltage_val1,
 	[S5M8767_LDO15] = &ldo_voltage_val2,
