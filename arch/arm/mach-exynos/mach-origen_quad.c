@@ -20,6 +20,7 @@
 #include <linux/mfd/s5m87xx/s5m-core.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
+#include <linux/pwm_backlight.h>
 #include <linux/regulator/machine.h>
 #include <linux/serial_core.h>
 
@@ -27,6 +28,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+#include <plat/backlight.h>
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
@@ -121,6 +123,10 @@ static struct regulator_consumer_supply s5m8767_buck4_consumer[] = {
 	REGULATOR_SUPPLY("vdd_g3d", NULL),
 };
 
+static struct regulator_consumer_supply s5m8767_ldo9_consumer[] = {
+	REGULATOR_SUPPLY("vdd_lcd", NULL),
+};
+
 static struct regulator_init_data s5m8767_buck1_data = {
 	.constraints		= {
 		.name		= "vdd_mif range",
@@ -188,11 +194,29 @@ static struct regulator_init_data s5m8767_buck4_data = {
 	.consumer_supplies	= &s5m8767_buck4_consumer[0],
 };
 
+static struct regulator_init_data s5m8767_ldo9_data = {
+	.constraints		= {
+		.name		= "vdd_lcd fixed",
+		.min_uV		= 3300000,
+		.max_uV		= 3300000,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.boot_on	= 1,
+		.state_mem	= {
+			.disabled	= 1,
+			.mode		= REGULATOR_MODE_STANDBY,
+		},
+		.initial_state	= PM_SUSPEND_MEM,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(s5m8767_ldo9_consumer),
+	.consumer_supplies	= &s5m8767_ldo9_consumer[0],
+};
+
 static struct s5m_regulator_data pegasus_regulators[] = {
 	{ S5M8767_BUCK1, &s5m8767_buck1_data },
 	{ S5M8767_BUCK2, &s5m8767_buck2_data },
 	{ S5M8767_BUCK3, &s5m8767_buck3_data },
 	{ S5M8767_BUCK4, &s5m8767_buck4_data },
+	{ S5M8767_LDO9,	 &s5m8767_ldo9_data },
 };
 
 struct s5m_opmode_data s5m8767_opmode_data[S5M8767_REG_MAX] = {
@@ -200,6 +224,7 @@ struct s5m_opmode_data s5m8767_opmode_data[S5M8767_REG_MAX] = {
 	[S5M8767_BUCK2] = { S5M8767_BUCK2, S5M_OPMODE_SUSPEND },
 	[S5M8767_BUCK3] = { S5M8767_BUCK3, S5M_OPMODE_SUSPEND },
 	[S5M8767_BUCK4] = { S5M8767_BUCK4, S5M_OPMODE_SUSPEND },
+	[S5M8767_LDO9]	= { S5M8767_LDO9,  S5M_OPMODE_SUSPEND },
 };
 
 static int s5m_cfg_irq(void)
@@ -283,6 +308,16 @@ static struct samsung_keypad_platdata origen_keypad_data __initdata = {
 	.keymap_data	= &origen_keymap_data,
 	.rows		= 3,
 	.cols		= 2,
+};
+
+static struct samsung_bl_gpio_info origen_bl_gpio_info = {
+	.no	= EXYNOS4_GPD0(1),
+	.func	= S3C_GPIO_SFN(2),
+};
+
+static struct platform_pwm_backlight_data origen_bl_data = {
+	.pwm_id		= 1,
+	.pwm_period_ns	= 1000,
 };
 
 static struct i2c_board_info origen_i2c_devs0[] __initdata = {
@@ -559,6 +594,8 @@ static void __init origen_machine_init(void)
 	exynos_ion_set_platdata();
 
 	s5p_fimg2d_set_platdata(&fimg2d_data);
+
+	samsung_bl_set(&origen_bl_gpio_info, &origen_bl_data);
 
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
 
