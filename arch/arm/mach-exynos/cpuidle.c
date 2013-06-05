@@ -310,10 +310,12 @@ static int check_power_domain(void)
 	return 0;
 }
 
+#ifdef	CONFIG_EXYNOS4_SETUP_USB_PHY
 static int check_usb_op(void)
 {
 	return exynos4_check_usb_op();
 }
+#endif
 
 static int exynos_check_operation(void)
 {
@@ -330,10 +332,12 @@ static int exynos_check_operation(void)
 		return 1;
 	}
 
+#ifdef	CONFIG_EXYNOS4_SETUP_USB_PHY
 	ret = check_usb_op();
 	if (ret) {
 		return 1;
 	}
+#endif
 
 	if (loop_sdmmc_check())
 		return 1;
