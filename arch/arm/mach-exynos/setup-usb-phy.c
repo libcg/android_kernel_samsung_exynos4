@@ -362,6 +362,7 @@ static int exynos4412_usb_phy1_init(struct platform_device *pdev)
 	writel((__raw_readl(gpio2_base + ETC6PUD) & ~(0x3 << 14)) | (0x3 << 14),
 		gpio2_base + ETC6PUD);
 
+#if defined(CONFIG_MACH_SMDK4212) || defined(CONFIG_MACH_SMDK4412)
 	err = gpio_request(EXYNOS4_GPX2(7), "HSIC0");
 	if (err)
 		dev_err(&pdev->dev, "Failed to get GPIO for HSIC0\n");
@@ -381,6 +382,7 @@ static int exynos4412_usb_phy1_init(struct platform_device *pdev)
 
 	gpio_set_value(EXYNOS4_GPX2(7), 0);
 	gpio_set_value(EXYNOS4_GPX3(0), 0);
+#endif
 
 	writel(S5P_USB_PHY_ENABLE, S5P_USB_PHY_CONTROL);
 #ifdef CONFIG_USB_S5P_HSIC0
@@ -433,6 +435,7 @@ static int exynos4412_usb_phy1_init(struct platform_device *pdev)
 
 	exynos_usb_phy_clock_disable(pdev);
 
+#if defined(CONFIG_MACH_SMDK4212) || defined(CONFIG_MACH_SMDK4412)
 	mdelay(1);
 	gpio_set_value(EXYNOS4_GPX2(7), 1);
 	gpio_set_value(EXYNOS4_GPX3(0), 1);
@@ -446,6 +449,7 @@ static int exynos4412_usb_phy1_init(struct platform_device *pdev)
 
 	gpio_free(EXYNOS4_GPX2(7));
 	gpio_free(EXYNOS4_GPX3(0));
+#endif
 
 	return 0;
 }

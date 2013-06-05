@@ -54,7 +54,6 @@ config SOC_EXYNOS4412
 	default y
 	depends on ARCH_EXYNOS4
 	select SAMSUNG_DMADEV
-	select S5P_DEV_USB_SWITCH
 	select S5P_DEV_FIMG2D
 	help
 	  Enable EXYNOS4412 SoC support
@@ -453,6 +452,7 @@ config MACH_SMDK4212
 	select S5P_DEV_FIMD0
 	select S5P_DEV_MFC
 	select S5P_DEV_I2C_HDMIPHY
+	select S5P_DEV_USB_SWITCH
 	select S5P_SETUP_MIPIPHY
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_KEYPAD
