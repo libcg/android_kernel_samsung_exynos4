@@ -16,6 +16,7 @@
 #include <linux/gpio_event.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/input/unidisplay_ts.h>
 #include <linux/io.h>
 #include <linux/mfd/s5m87xx/s5m-pmic.h>
 #include <linux/mfd/s5m87xx/s5m-core.h>
@@ -314,6 +315,61 @@ static struct samsung_keypad_platdata origen_keypad_data __initdata = {
 	.cols		= 2,
 };
 
+#define TOUCH_INT_PIN		EXYNOS4_GPX3(1)
+#define TOUCH_INT_PIN_SHIFT	1
+#define TOUCH_RST_PIN		EXYNOS4X12_GPM3(3)
+
+static int unidisplay_ts_init(void)
+{
+	if (gpio_request(TOUCH_INT_PIN, "TOUCH_INT_PIN")) {
+		pr_err("%s : gpio request failed.\n", __func__);
+		return 1;
+	}
+	s3c_gpio_cfgpin(TOUCH_INT_PIN, S3C_GPIO_SFN(0x0F));
+	s3c_gpio_setpull(TOUCH_INT_PIN, S3C_GPIO_PULL_UP);
+	gpio_direction_input(TOUCH_INT_PIN);
+	gpio_free(TOUCH_INT_PIN);
+
+	if (gpio_request(TOUCH_RST_PIN, "TOUCH_RST_PIN")) {
+		pr_err("%s : gpio request failed.\n", __func__);
+		return 1;
+	}
+	s3c_gpio_setpull(TOUCH_RST_PIN, S3C_GPIO_PULL_NONE);
+	s3c_gpio_cfgpin(TOUCH_RST_PIN, S3C_GPIO_OUTPUT);
+	gpio_direction_output(TOUCH_RST_PIN, 1);
+	gpio_free(TOUCH_RST_PIN);
+	return 0;
+}
+
+static int unidisplay_ts_reset(void)
+{
+	if (gpio_request(TOUCH_RST_PIN, "TOUCH_RST_PIN")) {
+		pr_err("%s : gpio request failed.\n", __func__);
+		return 1;
+	}
+	gpio_set_value(TOUCH_RST_PIN, 0);
+	udelay(100);
+	gpio_set_value(TOUCH_RST_PIN, 1);
+	gpio_free(TOUCH_RST_PIN);
+	return 0;
+}
+
+static int unidisplay_ts_pin_state(int irq)
+{
+	int ret = 1;
+	if (gpio_request(TOUCH_INT_PIN, "TOUCH_INT_PIN") == 0) {
+		ret = gpio_get_value(TOUCH_INT_PIN);
+		gpio_free(TOUCH_INT_PIN);
+	}
+	return ret;
+}
+
+struct unidisplay_ts_platform_data origen_unidisplay_ts_pdata = {
+	.init			= unidisplay_ts_init,
+	.reset			= unidisplay_ts_reset,
+	.pin_state		= unidisplay_ts_pin_state,
+};
+
 static struct samsung_bl_gpio_info origen_bl_gpio_info = {
 	.no	= EXYNOS4_GPD0(1),
 	.func	= S3C_GPIO_SFN(2),
@@ -447,7 +503,11 @@ static struct i2c_board_info origen_i2c_devs2[] __initdata = {
 };
 
 static struct i2c_board_info origen_i2c_devs3[] __initdata = {
-	/* nothing here yet */
+	{
+		I2C_BOARD_INFO("unidisplay_ts", 0x41),
+		.irq = IRQ_EINT(25),
+                .platform_data  = &origen_unidisplay_ts_pdata,
+	},
 };
 
 static struct i2c_board_info origen_i2c_devs6[] __initdata = {
