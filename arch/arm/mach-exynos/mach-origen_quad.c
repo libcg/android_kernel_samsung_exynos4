@@ -21,6 +21,7 @@
 #include <linux/mfd/s5m87xx/s5m-pmic.h>
 #include <linux/mfd/s5m87xx/s5m-core.h>
 #include <linux/mmc/host.h>
+#include <linux/platform_data/s3c-hsotg.h>
 #include <linux/platform_device.h>
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/machine.h>
@@ -132,6 +133,14 @@ static struct regulator_consumer_supply s5m8767_ldo9_consumer[] = {
 	REGULATOR_SUPPLY("vdd_lcd", NULL),
 };
 
+static struct regulator_consumer_supply s5m8767_ldo12_consumer[] = {
+	REGULATOR_SUPPLY("vusb_a", NULL),
+};
+
+static struct regulator_consumer_supply s5m8767_ldo15_consumer[] = {
+	REGULATOR_SUPPLY("vusb_d", NULL),
+};
+
 static struct regulator_init_data s5m8767_buck1_data = {
 	.constraints		= {
 		.name		= "vdd_mif range",
@@ -216,12 +225,51 @@ static struct regulator_init_data s5m8767_ldo9_data = {
 	.consumer_supplies	= &s5m8767_ldo9_consumer[0],
 };
 
+
+static struct regulator_init_data s5m8767_ldo12_data = {
+	.constraints = {
+		.name           = "vdd_ldo12 range",
+		.min_uV         = 3000000,
+		.max_uV         = 3300000,
+		.boot_on        = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+		.always_on      = 1,
+		.state_mem      = {
+			.disabled       = 1,
+			.mode           = REGULATOR_MODE_STANDBY,
+		},
+	.initial_state = PM_SUSPEND_MEM,
+	},
+	.num_consumer_supplies  = 1,
+	.consumer_supplies      = &s5m8767_ldo12_consumer[0],
+};
+
+static struct regulator_init_data s5m8767_ldo15_data = {
+	.constraints = {
+		.name           = "vdd_ldo15 range",
+		.min_uV         = 1000000,
+		.max_uV         = 1000000,
+		.boot_on        = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.always_on      = 1,
+		.state_mem      = {
+			.disabled       = 1,
+			.mode           = REGULATOR_MODE_STANDBY,
+		},
+		.initial_state = PM_SUSPEND_MEM,
+	},
+	.num_consumer_supplies  = 1,
+	.consumer_supplies      = &s5m8767_ldo15_consumer[0],
+};
+
 static struct s5m_regulator_data pegasus_regulators[] = {
 	{ S5M8767_BUCK1, &s5m8767_buck1_data },
 	{ S5M8767_BUCK2, &s5m8767_buck2_data },
 	{ S5M8767_BUCK3, &s5m8767_buck3_data },
 	{ S5M8767_BUCK4, &s5m8767_buck4_data },
 	{ S5M8767_LDO9,	 &s5m8767_ldo9_data },
+	{ S5M8767_LDO12, &s5m8767_ldo12_data },
+	{ S5M8767_LDO15, &s5m8767_ldo15_data },
 };
 
 struct s5m_opmode_data s5m8767_opmode_data[S5M8767_REG_MAX] = {
@@ -230,6 +278,8 @@ struct s5m_opmode_data s5m8767_opmode_data[S5M8767_REG_MAX] = {
 	[S5M8767_BUCK3] = { S5M8767_BUCK3, S5M_OPMODE_SUSPEND },
 	[S5M8767_BUCK4] = { S5M8767_BUCK4, S5M_OPMODE_SUSPEND },
 	[S5M8767_LDO9]	= { S5M8767_LDO9,  S5M_OPMODE_SUSPEND },
+	[S5M8767_LDO12] = { S5M8767_LDO12, S5M_OPMODE_SUSPEND },
+	[S5M8767_LDO15] = { S5M8767_LDO15, S5M_OPMODE_SUSPEND },
 };
 
 static int s5m_cfg_irq(void)
@@ -598,6 +648,9 @@ static struct fimg2d_platdata fimg2d_data __initdata = {
 };
 #endif
 
+/* USB OTG */
+static struct s3c_hsotg_plat origen_hsotg_pdata;
+
 static struct platform_device *origen_devices[] __initdata = {
 	&s3c_device_hsmmc2,
 	&s3c_device_i2c0,
@@ -606,6 +659,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s3c_device_i2c3,
 	&s3c_device_i2c6,
 	&s3c_device_rtc,
+	&s3c_device_usb_hsotg,
 	&s3c_device_wdt,
 	&s5p_device_fimc0,
 	&s5p_device_fimc1,
@@ -768,6 +822,8 @@ static void __init origen_machine_init(void)
 
 	s5p_fimd0_set_platdata(&origen_lcd0_pdata);
 	samsung_bl_set(&origen_bl_gpio_info, &origen_bl_data);
+
+	s3c_hsotg_set_platdata(&origen_hsotg_pdata);
 
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
 
