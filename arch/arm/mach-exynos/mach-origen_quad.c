@@ -37,6 +37,7 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
+#include <plat/ehci.h>
 #include <plat/fb.h>
 #include <plat/fimg2d.h>
 #include <plat/gpio-cfg.h>
@@ -52,6 +53,7 @@
 #include <mach/dwmci.h>
 #include <mach/exynos-ion.h>
 #include <mach/map.h>
+#include <mach/ohci.h>
 #include <mach/ppmu.h>
 #include <mach/regs-pmu.h>
 
@@ -141,6 +143,10 @@ static struct regulator_consumer_supply s5m8767_ldo15_consumer[] = {
 	REGULATOR_SUPPLY("vusb_d", NULL),
 };
 
+static struct regulator_consumer_supply s5m8767_ldo18_consumer[] = {
+	REGULATOR_SUPPLY("vdd_uhost", NULL),
+};
+
 static struct regulator_init_data s5m8767_buck1_data = {
 	.constraints		= {
 		.name		= "vdd_mif range",
@@ -225,7 +231,6 @@ static struct regulator_init_data s5m8767_ldo9_data = {
 	.consumer_supplies	= &s5m8767_ldo9_consumer[0],
 };
 
-
 static struct regulator_init_data s5m8767_ldo12_data = {
 	.constraints = {
 		.name           = "vdd_ldo12 range",
@@ -262,6 +267,23 @@ static struct regulator_init_data s5m8767_ldo15_data = {
 	.consumer_supplies      = &s5m8767_ldo15_consumer[0],
 };
 
+static struct regulator_init_data s5m8767_ldo18_data = {
+	.constraints = {
+		.name           = "vddioperi_28",
+		.min_uV         = 2800000,
+		.max_uV         = 2800000,
+		.boot_on        = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.state_mem      = {
+			.disabled       = 1,
+			.mode           = REGULATOR_MODE_STANDBY,
+		},
+		.initial_state = PM_SUSPEND_MEM,
+	},
+	.num_consumer_supplies  = 1,
+	.consumer_supplies      = &s5m8767_ldo18_consumer[0],
+};
+
 static struct s5m_regulator_data pegasus_regulators[] = {
 	{ S5M8767_BUCK1, &s5m8767_buck1_data },
 	{ S5M8767_BUCK2, &s5m8767_buck2_data },
@@ -270,6 +292,7 @@ static struct s5m_regulator_data pegasus_regulators[] = {
 	{ S5M8767_LDO9,	 &s5m8767_ldo9_data },
 	{ S5M8767_LDO12, &s5m8767_ldo12_data },
 	{ S5M8767_LDO15, &s5m8767_ldo15_data },
+	{ S5M8767_LDO18, &s5m8767_ldo18_data },
 };
 
 struct s5m_opmode_data s5m8767_opmode_data[S5M8767_REG_MAX] = {
@@ -280,6 +303,7 @@ struct s5m_opmode_data s5m8767_opmode_data[S5M8767_REG_MAX] = {
 	[S5M8767_LDO9]	= { S5M8767_LDO9,  S5M_OPMODE_SUSPEND },
 	[S5M8767_LDO12] = { S5M8767_LDO12, S5M_OPMODE_SUSPEND },
 	[S5M8767_LDO15] = { S5M8767_LDO15, S5M_OPMODE_SUSPEND },
+	[S5M8767_LDO18] = { S5M8767_LDO18, S5M_OPMODE_SUSPEND },
 };
 
 static int s5m_cfg_irq(void)
@@ -650,6 +674,26 @@ static struct fimg2d_platdata fimg2d_data __initdata = {
 
 /* USB OTG */
 static struct s3c_hsotg_plat origen_hsotg_pdata;
+/* USB EHCI */
+static struct s5p_ehci_platdata origen_ehci_pdata;
+/* USB OHCI */
+static struct exynos4_ohci_platdata origen_ohci_pdata;
+
+static int origen_uhost_reset(void)
+{
+	int err;
+	err = gpio_request_one(EXYNOS4_GPX3(5), 1, "GPX3");
+	if (err) {
+		printk(KERN_ERR "failed to request GPX3 for "
+				"suspend/resume control\n");
+		return -1;
+	}
+	s3c_gpio_setpull(EXYNOS4_GPX3(5), S3C_GPIO_PULL_NONE);
+	gpio_direction_output(EXYNOS4_GPX3(5), 1);
+	gpio_set_value(EXYNOS4_GPX3(5), 1);
+	gpio_free(EXYNOS4_GPX3(5));
+	return 0;
+}
 
 static struct platform_device *origen_devices[] __initdata = {
 	&s3c_device_hsmmc2,
@@ -661,6 +705,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_usb_hsotg,
 	&s3c_device_wdt,
+	&s5p_device_ehci,
 	&s5p_device_fimc0,
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
@@ -675,6 +720,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&exynos_busfreq,
 	&exynos_device_dwmci,
 	&exynos_device_ion,
+	&exynos4_device_ohci,
 	&exynos4412_busfreq,
 	&mali_gpu_device,
 	&origen_device_keypad,
@@ -824,6 +870,9 @@ static void __init origen_machine_init(void)
 	samsung_bl_set(&origen_bl_gpio_info, &origen_bl_data);
 
 	s3c_hsotg_set_platdata(&origen_hsotg_pdata);
+	s5p_ehci_set_platdata(&origen_ehci_pdata);
+	exynos4_ohci_set_platdata(&origen_ohci_pdata);
+	origen_uhost_reset();
 
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
 
