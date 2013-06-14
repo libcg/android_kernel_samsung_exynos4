@@ -41,6 +41,7 @@
 #include <plat/fb.h>
 #include <plat/fimg2d.h>
 #include <plat/gpio-cfg.h>
+#include <plat/hdmi.h>
 #include <plat/iic.h>
 #include <plat/keypad.h>
 #include <plat/mfc.h>
@@ -131,8 +132,20 @@ static struct regulator_consumer_supply s5m8767_buck4_consumer[] = {
 	REGULATOR_SUPPLY("vdd_g3d", NULL),
 };
 
+static struct regulator_consumer_supply s5m8767_ldo8_consumer[] = {
+	REGULATOR_SUPPLY("vdd", "exynos4-hdmi"),
+	REGULATOR_SUPPLY("vdd_pll", "exynos4-hdmi"),
+	REGULATOR_SUPPLY("vdd8_mipi", NULL),
+};
+
 static struct regulator_consumer_supply s5m8767_ldo9_consumer[] = {
 	REGULATOR_SUPPLY("vdd_lcd", NULL),
+};
+
+static struct regulator_consumer_supply s5m8767_ldo10_consumer[] = {
+	REGULATOR_SUPPLY("vdd_osc", "exynos4-hdmi"),
+	REGULATOR_SUPPLY("vdd10_mipi", NULL),
+	REGULATOR_SUPPLY("vdd_tmu", NULL),
 };
 
 static struct regulator_consumer_supply s5m8767_ldo12_consumer[] = {
@@ -214,6 +227,23 @@ static struct regulator_init_data s5m8767_buck4_data = {
 	.consumer_supplies	= &s5m8767_buck4_consumer[0],
 };
 
+static struct regulator_init_data s5m8767_ldo8_data = {
+	.constraints		= {
+		.name		= "vdd_ldo8 range",
+		.min_uV		= 1000000,
+		.max_uV         = 1000000,
+		.boot_on        = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.state_mem      = {
+			.disabled       = 1,
+			.mode  	        = REGULATOR_MODE_STANDBY,
+		},
+		.initial_state = PM_SUSPEND_MEM,
+	},
+	.num_consumer_supplies  = ARRAY_SIZE(s5m8767_ldo8_consumer),
+	.consumer_supplies      = s5m8767_ldo8_consumer,
+};
+
 static struct regulator_init_data s5m8767_ldo9_data = {
 	.constraints		= {
 		.name		= "vdd_lcd fixed",
@@ -229,6 +259,23 @@ static struct regulator_init_data s5m8767_ldo9_data = {
 	},
 	.num_consumer_supplies	= ARRAY_SIZE(s5m8767_ldo9_consumer),
 	.consumer_supplies	= &s5m8767_ldo9_consumer[0],
+};
+
+static struct regulator_init_data s5m8767_ldo10_data = {
+	.constraints = {
+		.name           = "vdd_ldo10 range",
+		.min_uV         = 1800000,
+		.max_uV         = 1800000,
+		.boot_on        = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.state_mem      = {
+			.disabled       = 1,
+			.mode           = REGULATOR_MODE_STANDBY,
+		},
+		.initial_state = PM_SUSPEND_MEM,
+	},
+	.num_consumer_supplies  = ARRAY_SIZE(s5m8767_ldo10_consumer),
+	.consumer_supplies      = s5m8767_ldo10_consumer,
 };
 
 static struct regulator_init_data s5m8767_ldo12_data = {
@@ -289,7 +336,9 @@ static struct s5m_regulator_data pegasus_regulators[] = {
 	{ S5M8767_BUCK2, &s5m8767_buck2_data },
 	{ S5M8767_BUCK3, &s5m8767_buck3_data },
 	{ S5M8767_BUCK4, &s5m8767_buck4_data },
+	{ S5M8767_LDO8,	 &s5m8767_ldo8_data },
 	{ S5M8767_LDO9,	 &s5m8767_ldo9_data },
+	{ S5M8767_LDO10, &s5m8767_ldo10_data },
 	{ S5M8767_LDO12, &s5m8767_ldo12_data },
 	{ S5M8767_LDO15, &s5m8767_ldo15_data },
 	{ S5M8767_LDO18, &s5m8767_ldo18_data },
@@ -300,7 +349,9 @@ struct s5m_opmode_data s5m8767_opmode_data[S5M8767_REG_MAX] = {
 	[S5M8767_BUCK2] = { S5M8767_BUCK2, S5M_OPMODE_SUSPEND },
 	[S5M8767_BUCK3] = { S5M8767_BUCK3, S5M_OPMODE_SUSPEND },
 	[S5M8767_BUCK4] = { S5M8767_BUCK4, S5M_OPMODE_SUSPEND },
+	[S5M8767_LDO8]	= { S5M8767_LDO8,  S5M_OPMODE_SUSPEND },
 	[S5M8767_LDO9]	= { S5M8767_LDO9,  S5M_OPMODE_SUSPEND },
+	[S5M8767_LDO10]	= { S5M8767_LDO10, S5M_OPMODE_SUSPEND },
 	[S5M8767_LDO12] = { S5M8767_LDO12, S5M_OPMODE_SUSPEND },
 	[S5M8767_LDO15] = { S5M8767_LDO15, S5M_OPMODE_SUSPEND },
 	[S5M8767_LDO18] = { S5M8767_LDO18, S5M_OPMODE_SUSPEND },
@@ -585,7 +636,14 @@ static struct i2c_board_info origen_i2c_devs3[] __initdata = {
 };
 
 static struct i2c_board_info origen_i2c_devs6[] __initdata = {
-	/* nothing here yet */
+        {
+                I2C_BOARD_INFO("s5p_ddc", (0x74 >> 1)),
+        },
+};
+
+/* I2C module and id for HDMIPHY */
+static struct i2c_board_info origen_i2c_hdmiphy[] __initdata = {
+        { I2C_BOARD_INFO("hdmiphy-exynos4412", 0x38), }
 };
 
 #ifdef CONFIG_EXYNOS4_DEV_DWMCI
@@ -695,6 +753,21 @@ static int origen_uhost_reset(void)
 	return 0;
 }
 
+static void origen_hdmi_hdp_init(void)
+{
+        /* direct HPD to External Interrupt */
+        WARN_ON(gpio_request_one(EXYNOS4_GPX3(7), GPIOF_IN, "hpd-plug"));
+        s3c_gpio_cfgpin(EXYNOS4_GPX3(7), S3C_GPIO_SFN(0xf));
+        s3c_gpio_setpull(EXYNOS4_GPX3(7), S3C_GPIO_PULL_NONE);
+	gpio_free(EXYNOS4_GPX3(7));
+}
+
+static void origen_i2c6_setup(void)
+{
+	s5p_gpio_set_drvstr(EXYNOS4_GPC1(3), 3);
+	s5p_gpio_set_drvstr(EXYNOS4_GPC1(4), 3);
+}
+
 static struct platform_device *origen_devices[] __initdata = {
 	&s3c_device_hsmmc2,
 	&s3c_device_i2c0,
@@ -713,9 +786,12 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_fimc3,
 	&s5p_device_fimd0,
 	&s5p_device_fimg2d,
+	&s5p_device_hdmi,
+	&s5p_device_i2c_hdmiphy,
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
+	&s5p_device_mixer,
 	&samsung_device_battery,
 	&samsung_device_keypad,
 	&exynos_busfreq,
@@ -859,6 +935,11 @@ static void __init origen_machine_init(void)
 
 	origen_powerkey_init();
 	samsung_keypad_set_platdata(&origen_keypad_data);
+
+	origen_hdmi_hdp_init();
+	s5p_i2c_hdmiphy_set_platdata(NULL);
+	s5p_hdmi_set_platdata(origen_i2c_hdmiphy, NULL, 0);
+	origen_i2c6_setup();
 
 	exynos_dwmci_set_platdata(&origen_dwmci_pdata);
 	s3c_sdhci2_set_platdata(&origen_hsmmc2_pdata);
