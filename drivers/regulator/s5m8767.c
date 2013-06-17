@@ -461,7 +461,7 @@ static int s5m8767_set_voltage_time_sel(struct regulator_dev *rdev,
 
 static struct regulator_ops s5m8767_ops = {
 	.list_voltage		= s5m8767_list_voltage,
-//	.is_enabled		= s5m8767_reg_is_enabled,
+	.is_enabled		= s5m8767_reg_is_enabled,
 	.enable			= s5m8767_reg_enable,
 	.disable		= s5m8767_reg_disable,
 	.get_voltage_sel	= s5m8767_get_voltage_sel,
